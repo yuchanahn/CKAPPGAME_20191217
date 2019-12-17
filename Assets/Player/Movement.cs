@@ -1,67 +1,55 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using FlatBuffers;
 
 public class Movement : MonoBehaviour
 {
-    public int id = -1;
     Animator anim;
+    Rigidbody rd;
     float h;
     float v;
+    float speed = 10f;
+    float JumpSpeed = 10f;
+    [SerializeField] Transform CamView;
+    Transform CamTr;
 
-    public int y__rot = 0;
-    [SerializeField, Range(0f, 0.5f)] float sendRate = 0.1f;
+    DetectGround dg;
+    Gravity gv;
 
-    public GameObject Boom;
+    public bool IsJumping { get; private set; }
 
-    float sendRateT = 0;
-
-    public Vector3 TargetPos;
-    public float ptime;
-
-    // Start is called before the first frame update
     void Start()
     {
-        anim = GetComponent<Animator>();
-        TargetPos = transform.position;
+        anim = GetComponentInChildren<Animator>();
+        rd = GetComponent<Rigidbody>();
+        dg = GetComponent<DetectGround>();
+        gv = GetComponent<Gravity>();
+        CamTr = GetComponentInChildren<Camera>().transform;
     }
 
-
-
-    // Update is called once per frame
     void Update()
     {
-        if (Server__TCP.Instance.MY_ID != id)
+        float rotSpeed = 1.0f;
+        
+        var MouseY = -1 * Input.GetAxis("Mouse Y") * rotSpeed;
+
+        CamView.Rotate(Vector3.right * rotSpeed * MouseY);
+        float angle = Vector3.Angle(transform.forward, CamView.forward);
+
+        float maxAngle = 45;
+        if (angle > maxAngle)
         {
-            transform.rotation = Quaternion.Lerp(transform.rotation, Quaternion.Euler(0, y__rot, 0), Time.deltaTime);
-
-            var vel = TargetPos - transform.position;
-            anim.SetFloat("XVel", Vector2.ClampMagnitude(vel, 1).x);
-            anim.SetFloat("ZVel", Vector2.ClampMagnitude(vel, 1).y);
-            anim.SetFloat("Walk", vel.magnitude);
-
-            if (vel.x != 0 && vel.z != 0)
+            if (CamView.forward.y > 0)
             {
-                anim.SetFloat("Speed", vel.z);
+                CamView.rotation = Quaternion.Euler(-maxAngle, CamView.eulerAngles.y, CamView.eulerAngles.z);
             }
-            else if (vel.z == 0 && vel.x != 0)
+            else if (CamView.forward.y < 0)
             {
-                anim.SetFloat("Speed", 1);
-            }
-            else if (vel.z != 0 && vel.x == 0)
-            {
-                anim.SetFloat("Speed", vel.z);
+                CamView.rotation = Quaternion.Euler(maxAngle, CamView.eulerAngles.y, CamView.eulerAngles.z);
             }
         }
-        transform.position = Vector3.Lerp(transform.position, TargetPos, ptime / sendRate);
-        ptime += Time.deltaTime;
-        if (Server__TCP.Instance.MY_ID != id) return;
 
-
-        float rotSpeed = 1.0f; //ADD
-        float MouseX = Input.GetAxis("Mouse X");
-
+        var MouseX = Input.GetAxis("Mouse X");
         transform.Rotate(Vector3.up * rotSpeed * MouseX);
 
         h = Input.GetAxis("Horizontal");
@@ -86,19 +74,33 @@ public class Movement : MonoBehaviour
             anim.SetFloat("Speed", v);
         }
 
-        sendRateT += Time.deltaTime;
 
-        if (sendRateT > sendRate)
-        {
-            Vector3 nextPos = transform.position;
-            var vl = (Camera.main.transform.forward * v) + (Camera.main.transform.right * h);
+    }
 
-            nextPos += vl * 3 * sendRateT;
+    private void LateUpdate()
+    {
 
-            var fbb = new FlatBufferBuilder(1);
-            fbb.Finish(fplayer.Createfplayer(fbb, eFB_Type.fplayer, 0, default(StringOffset), 0, 0, 0, 0, 0, 0, nextPos.x, nextPos.z, Mathf.RoundToInt(transform.rotation.y), 0).Value);
-            Server__TCP.Instance.Send(fbb.SizedByteArray());
-            sendRateT = 0;
-        }
+        anim.SetBool("IsGround", dg.IsGround);
+    }
+
+    private void FixedUpdate()
+    {
+        gv.Apply(!dg.IsGround);
+        dg.Detect(!IsJumping);
+        
+
+
+
+        Vector3 Vel = ((transform.forward * v) + (CamView.right * h)).normalized;
+        Vel *= speed;
+        rd.velocity = new Vector3(Vel.x, rd.velocity.y, Vel.z);
+    }
+
+
+
+
+    void Jump()
+    {
+
     }
 }
