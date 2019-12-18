@@ -4,8 +4,8 @@ using UnityEngine;
 
 public class Gravity : MonoBehaviour
 {
+    [SerializeField] float GravityScale;
     Rigidbody rd;
-
 
     private void Awake()
     {
@@ -15,7 +15,6 @@ public class Gravity : MonoBehaviour
     public void Apply(bool UseGravity)
     {
         if (!UseGravity) return;
-        Debug.Log("중력적용.");
-        rd.velocity = new Vector3(rd.velocity.x, rd.velocity.y + (-10 * Time.fixedDeltaTime), rd.velocity.y);
+        rd.velocity = new Vector3(rd.velocity.x, rd.velocity.y + (-GravityScale * Time.fixedDeltaTime), rd.velocity.y);
     }
 }
